@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 from presion_sat import presion_sat
@@ -38,6 +39,8 @@ parametros = {
     "exO2": 2.0,
     "P_anodo": 1.3,
     "P_catodo": 2,
+    "RH_1": 0.5,
+    "RH_2": 0.5,
 }
 
 T_operacion = parametros["T_operacion"]
@@ -53,10 +56,10 @@ nH2 = exH2*(I/(2*F))
 T_1 = T_operacion
 P_1 = parametros["P_anodo"]
 Psat_1 = presion_sat(T_1,1)
-RH_1 = 0.5
+RH_1 = parametros["RH_1"]
 
 yH2O_1 = (RH_1*Psat_1)/(P_1)
-yH2_1 = 1- yH2O_1
+yH2_1 = 1 - yH2O_1
 
 PH2_1 = P_1*yH2_1
 PH2O_1 = P_1*yH2O_1
@@ -68,16 +71,16 @@ CH2O_1 = (PH2O_1*1e5)/(R*T_1)
 PM_1 = yH2_1*PM[0]+ yH2O_1*PM[2]
 
 
-rho_1 = ((P_1*1e5)*PM_1)/(R*T_1)
+#rho_1 = ((P_1*1e5)*PM_1)/(R*T_1)
 
 q_1 = (nH2 + nH2O_1)*((R*T_1)/(P_1*1e5))
 
 
 #CORRIENTE DE AIRE ENTRADA
 n_O2 = exO2*(I/(4*F))
-T_2 = 348.15
-P_2 = 1.1
-RH_2 = 0.5
+T_2 = T_operacion
+P_2 = parametros["P_catodo"]
+RH_2 = parametros["RH_2"]
 
 Psat_2 = presion_sat(T_2,1)
 
@@ -103,7 +106,7 @@ PM_2 = yH2O_2*PM[2] + yO2_2*PM[1] + yN2_2*PM[3]
 
 q_2 = (n_O2 + nH2O_2 + nN2_2)*((R*T_2)/(P_2*1e5))
 
-rho_2 = ((P_2*1e5)*PM_2)/(R*T_2)
+#rho_2 = ((P_2*1e5)*PM_2)/(R*T_2)
 
 entradas = {
     "q1": q_1,
@@ -160,13 +163,13 @@ c_membrana = np.zeros(rango)
 Dw = np.zeros(rango)
 
 # POTENCIAL DE REDUCCIÓN ESTÁNDAR
-E_standar = 1.229 - 0.9e-3 * (T_operacion - 298.15)
+E_standar = 1.229 - 0.9e-3*(T_operacion - 298.15)
 
 # VOLTAJE DE NERNST
 for i in range(rango):
-    E_nernst[i] = (E_standar - 0.85e-3 * (T_operacion - 298.15) + 
+    E_nernst[i] = (E_standar - 0.85e-3*(T_operacion - 298.15) + 
                    4.3085e-5 * T_operacion * 
-                   (np.log(P_parcial[i, 0]) + np.log(P_parcial[i, 1] * 0.5)))
+                   (np.log(P_parcial[i, 0]) + 0.5*np.log(P_parcial[i, 1])))
 
 
 # ============================================================
@@ -311,7 +314,6 @@ plt.xlim(0, max(t))
 plt.ylim(0, np.max(concentraciones) * 1.1)
 
 plt.tight_layout()
-plt.show()
 
 # GRÁFICO 1: VOLTAJE DE CELDA vs VOLTAJE DE NERNST
 fig1, ax1 = plt.subplots(figsize=(10, 6))
@@ -329,7 +331,6 @@ ax1.set_xlim(0, max(t))
 ax1.set_ylim(0)
 
 plt.tight_layout()
-plt.show()
 
 # GRÁFICO 2: SOBREVOLTAJES
 fig2, ax2 = plt.subplots(figsize=(10, 6))
@@ -348,10 +349,6 @@ ax2.set_xlim(0, max(t))
 ax2.set_ylim(0)
 
 plt.tight_layout()
-plt.show()
-
-# EXPORTAR DATOS A EXCEL
-import pandas as pd
 
 datos_exportar = pd.DataFrame({
     'Tiempo (s)': t,
@@ -381,11 +378,16 @@ datos_exportar = pd.DataFrame({
     'Voltaje_Stack (V)': voltaje_stack,
 })
 
+
 # Guardar en Excel
-ruta_excel = r'd:\Gab\Escritorio\Proyectos_Python\resultados2.xlsx'
+ruta_excel = r'd:\Gab\Escritorio\Proyectos_Python\resultados_3.xlsx'
 datos_exportar.to_excel(ruta_excel, index=False, sheet_name='Datos')
 
 print(f"✓ Datos exportados exitosamente a: {ruta_excel}")
 print(f"✓ Filas: {len(datos_exportar)}")
 print(f"✓ Columnas: {len(datos_exportar.columns)}")
 print("✓ Simulación completada")
+
+
+# Mostrar todos los gráficos juntos al final
+plt.show()

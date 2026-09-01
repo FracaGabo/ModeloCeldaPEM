@@ -7,10 +7,7 @@ from Difusividad import Difusividad
 
 def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
 
-    # =========================================================
-    # PARÁMETROS
-    # =========================================================
-
+    # CONSTANTES
     F = 96485
     R = 8.314
 
@@ -23,11 +20,7 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
     rho_membrana = parametros["rho_membrana"]
     PM_membrana = parametros["PM_membrana"]
 
-
-    # =========================================================
-    # ENTRADAS
-    # =========================================================
-
+    #Condicones de entrada
     q1 = entradas["q1"]
     q2 = entradas["q2"]
 
@@ -40,52 +33,26 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
 
     T_operacion = parametros["T_operacion"]
 
-
-    # =========================================================
     # VECTOR DE TIEMPO
-    # =========================================================
-
     tiempos = np.arange(ti, tf + dt, dt)
 
-
-    # =========================================================
     # MATRICES PARA GUARDAR RESULTADOS
-    # =========================================================
-
+    
     concentraciones = np.zeros((len(tiempos), 5))
-
     FM_resultados = np.zeros(len(tiempos))
 
-
-    # =========================================================
     # CONDICIONES INICIALES
-    # =========================================================
-
     concentraciones[0, :] = C_inicial
 
-
-    # =========================================================
     # VALOR INICIAL DEL ITERADOR FM
-    # =========================================================
-
     FM_anterior = 1e-4
-
     FM_resultados[0] = FM_anterior
-
-
-    # =========================================================
+    
     # PARÁMETROS DE CONVERGENCIA
-    # =========================================================
-
     tolerancia = 1e-5
-
     max_iteraciones = 1000
 
-
-    # =========================================================
     # CICLO TEMPORAL
-    # =========================================================
-
     for k in range(len(tiempos) - 1):
 
         # Tiempo inicial y final del intervalo
@@ -100,17 +67,12 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
 
         convergio = False
 
-
-        # =====================================================
         # ITERACIÓN PARA HACER CONVERGER FM
-        # =====================================================
 
         for iteracion in range(max_iteraciones):
 
 
-            # =================================================
             # CORRIENTE EN ESTE INTERVALO
-            # =================================================
 
             if t0 < 800:
 
@@ -125,9 +87,7 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
                 I = 0.8 * A_catodo * 1e4
 
 
-            # =================================================
             # FUNCIÓN DE BALANCES DE MATERIA
-            # =================================================
 
             def balances(t, C):
 
@@ -139,38 +99,23 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
                 q3 = (q1*CH2_1 - I/(2*F) + q1*CH2O_1 - FM_iter) / (CH2O_AN + CH2)
 
                 q4 = (q2*CN2_2 + q2*CO2_2 - I/(4*F) + q2*CH2O_2 + I/(2*F) + FM_iter) / (CN2 + CO2 + CH2O_CA)
-
-
-                # =============================================
+                
                 # BALANCE DE MATERIA ÁNODO
-                # =============================================
-
                 # HIDRÓGENO
 
                 dCH2dt = (q1/V_anodo)*CH2_1 - (q3/V_anodo)*CH2 - I/(2*F*V_anodo)
 
-
                 # AGUA ÁNODO
-
                 dCH2O_ANdt = (q1/V_anodo)*CH2O_1 - (q3/V_anodo)*CH2O_AN - FM_iter/V_anodo
-
-
-                # =============================================
+                
                 # BALANCE DE MATERIA CÁTODO
-                # =============================================
-
                 # OXÍGENO
-
                 dCO2dt = (q2/V_catodo)*CO2_2 - (q4/V_catodo)*CO2 - I/(4*F*V_catodo)
 
-
                 # AGUA CÁTODO
-
                 dCH2O_CAdt = (q2/V_catodo)*CH2O_2 - (q4/V_catodo)*CH2O_CA + I/(2*F*V_catodo) + FM_iter/V_catodo
 
-
                 # NITRÓGENO
-
                 dCN2dt = (q2/V_catodo)*CN2_2 - (q4/V_catodo)*CN2
 
 
@@ -183,9 +128,7 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
                 ]
 
 
-            # =================================================
             # RESOLUCIÓN DE LAS EDO PARA ESTE INTERVALO
-            # =================================================
 
             solucion = solve_ivp(
                 balances,
@@ -207,9 +150,7 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
                 )
 
 
-            # =================================================
             # CONCENTRACIONES AL FINAL DEL INTERVALO
-            # =================================================
 
             C_nueva = solucion.y[:, -1]
 
@@ -225,16 +166,12 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
             CN2 = C_nueva[4]
 
 
-            # =================================================
             # PRESIÓN DE SATURACIÓN
-            # =================================================
 
             psat_Pa = presion_sat(T_operacion, 1) * 1e5
 
 
-            # =================================================
             # ACTIVIDAD DEL AGUA
-            # =================================================
 
             actividad = [
                 R*T_operacion*CH2O_AN/psat_Pa,
@@ -242,53 +179,39 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
             ]
 
 
-            # =================================================
             # CONTENIDO DE AGUA DE LA MEMBRANA
-            # =================================================
 
             lambda_agua = funcion_lambda(actividad)
 
 
-            # =================================================
             # DIFUSIVIDAD DEL AGUA
-            # =================================================
 
             Dw = Difusividad(lambda_agua, T_operacion)
 
 
-            # =================================================
             # CONCENTRACIÓN DE AGUA SEGÚN LA MEMBRANA
-            # =================================================
 
             CH2O_AN_mem = (rho_membrana/PM_membrana) * lambda_agua[0]
 
             CH2O_CA_mem = (rho_membrana/PM_membrana) * lambda_agua[1]
 
 
-            # =================================================
             # ARRASTRE ELECTROOSMÓTICO
-            # =================================================
 
             nd = 2.5/22
 
 
-            # =================================================
             # NUEVO FM
-            # =================================================
 
             FM_nuevo = nd*(I/F) - A_catodo*Dw*(CH2O_CA_mem - CH2O_AN_mem)/e_membrana
 
 
-            # =================================================
             # ERROR ENTRE FM ANTERIOR Y FM NUEVO
-            # =================================================
 
             error = abs(FM_nuevo - FM_iter)
 
 
-            # =================================================
             # COMPROBAR CONVERGENCIA
-            # =================================================
 
             if error < tolerancia:
 
@@ -305,9 +228,7 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
             FM_iter = FM_nuevo
 
 
-        # =====================================================
         # VERIFICAR CONVERGENCIA
-        # =====================================================
 
         if not convergio:
 
@@ -317,29 +238,23 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
             )
 
 
-        # =====================================================
         # GUARDAR CONCENTRACIONES CONVERGIDAS
-        # =====================================================
 
         concentraciones[k + 1, :] = C_nueva
 
 
-        # =====================================================
         # GUARDAR FM CONVERGIDO
-        # =====================================================
 
         FM_resultados[k + 1] = FM_iter
 
 
-        # =====================================================
         # USAR FM CONVERGIDO COMO ESTIMACIÓN DEL SIGUIENTE PASO
-        # =====================================================
 
         FM_anterior = FM_iter
 
 
-    # =========================================================
+    
     # RESULTADOS
-    # =========================================================
+    
 
     return tiempos, concentraciones, FM_resultados

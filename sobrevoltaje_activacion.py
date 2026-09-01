@@ -72,6 +72,6 @@ def sobrevoltaje_activacion(x, u, a):
     exp_arg_2_pos = np.clip(exp_arg_2_pos, -MAX_EXP, MAX_EXP)
     exp_arg_2_neg = np.clip(exp_arg_2_neg, -MAX_EXP, MAX_EXP)
     
-    V_act_2 = j0_catodo * ((CO2 / CO2_2) * (np.exp(exp_arg_2_pos) - np.exp(exp_arg_2_neg))) - J_catodo
+    V_act_2 = j0_catodo * ((CO2/CO2_2) * (np.exp(exp_arg_2_pos) - np.exp(exp_arg_2_neg))) - J_catodo
     
     return np.array([V_act_1, V_act_2])
