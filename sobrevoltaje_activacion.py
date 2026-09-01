@@ -63,7 +63,7 @@ def sobrevoltaje_activacion(x, u, a):
     exp_arg_1_pos = np.clip(exp_arg_1_pos, -MAX_EXP, MAX_EXP)
     exp_arg_1_neg = np.clip(exp_arg_1_neg, -MAX_EXP, MAX_EXP)
     
-    V_act_1 = j0_anodo * ((CH2 / CH2_1) ** n) * (np.exp(exp_arg_1_pos) - np.exp(exp_arg_1_neg)) - J_anodo
+    V_act_1 = j0_anodo*((CH2/CH2_1)**n)*(np.exp(exp_arg_1_pos) - np.exp(exp_arg_1_neg)) - J_anodo
     
     # ECUACIÓN 2: CÁTODO
     exp_arg_2_pos = f_catodo * n_catodo

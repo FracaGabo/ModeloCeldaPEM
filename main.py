@@ -170,7 +170,6 @@ for i in range(rango):
 
 
 # SOBREVOLTAJES
-# SOBREVOLTAJES
 a2 = np.array([parametros["j0_anodo"], parametros["j0_catodo"], CH2_1, CO2_2,
                parametros["alpha_anodo"], parametros["alpha_catodo"], 
                parametros["A_anodo"], parametros["A_catodo"]])
@@ -208,8 +207,8 @@ for i in range(rango):
     # SOBREVOLTAJE OHMICO
     psat = presion_sat(T_operacion, 1)  # bar
     
-    actividad[i, 0] = P_parcial[i, 2] / psat
-    actividad[i, 1] = P_parcial[i, 3] / psat
+    actividad[i, 0] = P_parcial[i, 2] / psat #anodo
+    actividad[i, 1] = P_parcial[i, 3] / psat #catodo
     lambda_vals[i, :] = funcion_lambda(actividad[i, :])
     Dw[i] = Difusividad(lambda_vals[i, :], T_operacion)
     
@@ -229,33 +228,27 @@ for i in range(rango):
     
     voltaje_stack[i] = voltaje[i] * parametros["n"]
 
-# GRAFICO DE LINEA
-fig = plt.figure()
+# ...existing code...
+
+# GRAFICO DE CONCENTRACIONES
+fig = plt.figure(figsize=(10, 6))
 ax = plt.axes()
 
-plt.grid()
-plt.plot(t, concentraciones[:, 0], label='H₂')
-plt.plot(t, concentraciones[:, 1], label='H₂O (anodo)')
-plt.plot(t, concentraciones[:, 2], label='O₂')
-plt.plot(t, concentraciones[:, 3], label='H₂O (catodo)')
-plt.plot(t, concentraciones[:, 4], label='N₂')
+plt.plot(t, concentraciones[:, 0], label='H₂', linewidth=2)
+plt.plot(t, concentraciones[:, 1], label='H₂O (anodo)', linewidth=2)
+plt.plot(t, concentraciones[:, 2], label='O₂', linewidth=2)
+plt.plot(t, concentraciones[:, 3], label='H₂O (catodo)', linewidth=2)
+plt.plot(t, concentraciones[:, 4], label='N₂', linewidth=2)
 
-# ...existing code...
-
-plt.xlabel('Tiempo (s)')
-plt.ylabel('Concentración (mol/m³)')
-plt.legend()
-plt.grid()
-
-# Establecer los límites de los ejes desde 0
+plt.xlabel('Tiempo (s)', fontsize=12)
+plt.ylabel('Concentración (mol/m³)', fontsize=12)
+plt.title('Concentración de especies vs Tiempo', fontsize=14, fontweight='bold')
+plt.legend(fontsize=11)
+plt.grid(True, alpha=0.3)
 plt.xlim(0, max(t))
-plt.ylim(0, np.max(concentraciones) * 1.1)  # 1.1 para dejar margen arriba
+plt.ylim(0, np.max(concentraciones) * 1.1)
 
-plt.show()
-
-
-# ...existing code...
-
+plt.tight_layout()
 plt.show()
 
 # GRÁFICO 1: VOLTAJE DE CELDA vs VOLTAJE DE NERNST
@@ -263,7 +256,7 @@ fig1, ax1 = plt.subplots(figsize=(10, 6))
 
 ax1.plot(t, E_nernst, label='Voltaje de Nernst (reversible)', linewidth=2, color='green')
 ax1.plot(t, voltaje, label='Voltaje de la celda', linewidth=2, color='blue')
-#ax1.plot(t, voltaje_stack, label='Voltaje del stack', linewidth=2, color='red')
+ax1.plot(t, voltaje_stack, label='Voltaje del stack', linewidth=2, color='red')
 
 ax1.set_xlabel('Tiempo (s)', fontsize=12)
 ax1.set_ylabel('Voltaje (V)', fontsize=12)
@@ -294,3 +287,43 @@ ax2.set_ylim(0)
 
 plt.tight_layout()
 plt.show()
+
+# EXPORTAR DATOS A EXCEL
+import pandas as pd
+
+datos_exportar = pd.DataFrame({
+    'Tiempo (s)': t,
+    'H2 (mol/m³)': concentraciones[:, 0],
+    'H2O_anodo (mol/m³)': concentraciones[:, 1],
+    'O2 (mol/m³)': concentraciones[:, 2],
+    'H2O_catodo (mol/m³)': concentraciones[:, 3],
+    'N2 (mol/m³)': concentraciones[:, 4],
+    'P_parcial_H2 (bar)': P_parcial[:, 0],
+    'P_parcial_O2 (bar)': P_parcial[:, 1],
+    'P_parcial_H2O_anodo (bar)': P_parcial[:, 2],
+    'P_parcial_H2O_catodo (bar)': P_parcial[:, 3],
+    'P_parcial_N2 (bar)': P_parcial[:, 4],
+    'Actividad_anodo': actividad[:, 0],
+    'Actividad_catodo': actividad[:, 1],
+    'Lambda_1': lambda_vals[:, 0],
+    'Lambda_2': lambda_vals[:, 1],
+    'Lambda_3': lambda_vals[:, 2],
+    'Difusividad (m2/s)': Dw,
+    'Conductividad_membrana (S/cm)': c_membrana,
+    'Voltaje_Nernst (V)': E_nernst,
+    'Sobrevoltaje_Anodo (V)': sobrevoltaje[:, 0],
+    'Sobrevoltaje_Catodo (V)': sobrevoltaje[:, 1],
+    'Sobrevoltaje_Ohmico (V)': sobrevoltaje[:, 2],
+    'Sobrevoltaje_Concentracion (V)': sobrevoltaje[:, 3],
+    'Voltaje_Celda (V)': voltaje,
+    'Voltaje_Stack (V)': voltaje_stack,
+})
+
+# Guardar en Excel
+ruta_excel = r'd:\Gab\Escritorio\Proyectos_Python\resultados.xlsx'
+datos_exportar.to_excel(ruta_excel, index=False, sheet_name='Datos')
+
+print(f"✓ Datos exportados exitosamente a: {ruta_excel}")
+print(f"✓ Filas: {len(datos_exportar)}")
+print(f"✓ Columnas: {len(datos_exportar.columns)}")
+print("✓ Simulación completada")
