@@ -12,6 +12,7 @@ from electroquimica import (
 from funcion_lambda import funcion_lambda
 from main import ejecutar_simulacion
 from presion_sat import presion_sat
+from resultados import crear_tabla
 
 
 class PruebasModelo(unittest.TestCase):
@@ -74,6 +75,20 @@ class PruebasModelo(unittest.TestCase):
         presion_catodo = np.sum(resultados["P_parcial"][:, 2:5], axis=1)
         np.testing.assert_allclose(presion_anodo, self.parametros["P_anodo"], rtol=1e-8)
         np.testing.assert_allclose(presion_catodo, self.parametros["P_catodo"], rtol=1e-8)
+
+    def test_etiquetas_de_presiones_exportadas(self):
+        resultados = ejecutar_simulacion(self.parametros, tf=1, dt=1)
+        tabla = crear_tabla(
+            resultados["t"], resultados["concentraciones"], resultados["P_parcial"],
+            resultados["corriente"], resultados["FM"], resultados["actividad"],
+            resultados["lambda"], resultados["Dw"], resultados["conductividad"],
+            resultados["E_nernst"], resultados["sobrevoltajes"],
+            resultados["voltaje"], resultados["voltaje_stack"],
+        )
+        np.testing.assert_allclose(tabla["P_parcial_H2O_anodo (bar)"], resultados["P_parcial"][:, 1])
+        np.testing.assert_allclose(tabla["P_parcial_O2 (bar)"], resultados["P_parcial"][:, 2])
+        np.testing.assert_allclose(tabla["P_total_anodo (bar)"], self.parametros["P_anodo"])
+        np.testing.assert_allclose(tabla["P_total_catodo (bar)"], self.parametros["P_catodo"])
 
 
 if __name__ == "__main__":

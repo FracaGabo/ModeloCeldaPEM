@@ -73,7 +73,7 @@ def main():
         resultados["E_nernst"], resultados["sobrevoltajes"],
         resultados["voltaje"], resultados["voltaje_stack"],
     )
-    ruta = exportar_excel(tabla, Path(__file__).with_name("resultados_5.xlsx"))
+    ruta = exportar_excel(tabla, Path(__file__).with_name("resultados_7.xlsx"))
     crear_graficos(
         resultados["t"], resultados["concentraciones"], resultados["E_nernst"],
         resultados["voltaje"], resultados["voltaje_stack"], resultados["sobrevoltajes"],
