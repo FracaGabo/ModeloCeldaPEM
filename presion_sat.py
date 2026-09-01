@@ -14,10 +14,10 @@ def presion_sat(T,n):
     else:
         A = -2.1794
         B = 0.02953
-        C = -9.1837**(1e-5)
-        D = 1.4454**(1e-7)
+        C = -9.1837*(1e-5)
+        D = 1.4454*(1e-7)
         
-        Psat = 10^(A + B*(T_C) + C*(T_C**2) + D*(T_C**3))
+        Psat = 10**(A + B*(T_C) + C*(T_C**2) + D*(T_C**3))
         
         
     return Psat

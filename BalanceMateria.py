@@ -1,6 +1,8 @@
 import numpy as np 
 from scipy.integrate import solve_ivp
 
+import presion_sat, Difusividad, funcion_lambda
+
 #BALANCE MATERIA HIDRÓGEN
 
 def balances_materia(t,Ci, parametros):
@@ -26,6 +28,12 @@ def balances_materia(t,Ci, parametros):
     V_catodo = parametros["V_catodo"]
     
     T_operacion = parametros["T_operacion"]
+    
+    rho_membrana = parametros["rho_membrana"]
+    PM_membrana = parametros["PM_membrana"]
+    e_membrana = parametros["e_membrana"]
+    
+    A_catodo = parametros["A_catodo"]
     
     
     #ITERADORES INICIALES
@@ -57,14 +65,14 @@ def balances_materia(t,Ci, parametros):
         
         actividad_agua = [((R*T_operacion*CH2O_AN)/presion_saturacion), ((R*T_operacion*CH2O_CA)/presion_saturacion)]
         
-        funcion_lambda = contenido_agua(actividad_agua)
+        f_lambda = funcion_lambda(actividad_agua)
         
-        Dw = difusividad_agua(funcion_lambda,T_operacion)
+        Dw = Difusividad(funcion_lambda,T_operacion)
         
         nd = (2.5/22)
         
-        CH2O_AN = (rho_membrana/PM_membrana)*funcion_lambda[0]
-        CH2O_CA = (rho_membrana/PM_membrana)*funcion_lambda[1]
+        CH2O_AN = (rho_membrana/PM_membrana)*f_lambda[0]
+        CH2O_CA = (rho_membrana/PM_membrana)*f_lambda[1]
 
         FM_calculado = nd*(I/F) - ((A_catodo*Dw*(CH2O_AN-CH2O_CA)))/(e_membrana)
         

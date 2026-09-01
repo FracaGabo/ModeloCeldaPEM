@@ -1,5 +1,8 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from presion_sat import presion_sat
+from funcion_lambda import funcion_lambda
+from Difusividad import Difusividad
 
 
 def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
@@ -8,8 +11,8 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
     # PARÁMETROS
     # =========================================================
 
-    F = parametros["F"]
-    R = parametros["R"]
+    F = 96485
+    R = 8.314
 
     V_anodo = parametros["V_anodo"]
     V_catodo = parametros["V_catodo"]
@@ -35,7 +38,7 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
     CH2O_2 = entradas["CH2O_2"]
     CN2_2 = entradas["CN2_2"]
 
-    T_operacion = entradas["T_operacion"]
+    T_operacion = parametros["T_operacion"]
 
 
     # =========================================================
@@ -243,14 +246,14 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
             # CONTENIDO DE AGUA DE LA MEMBRANA
             # =================================================
 
-            lambda_agua = contenido_agua(actividad)
+            lambda_agua = funcion_lambda(actividad)
 
 
             # =================================================
             # DIFUSIVIDAD DEL AGUA
             # =================================================
 
-            Dw = difusividad(lambda_agua, T_operacion)
+            Dw = Difusividad(lambda_agua, T_operacion)
 
 
             # =================================================
