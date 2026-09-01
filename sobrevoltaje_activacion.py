@@ -1,77 +1,33 @@
+"""Compatibilidad con la interfaz residual historica de Butler-Volmer."""
+
 import numpy as np
 
+from config import F, R
+
+
 def sobrevoltaje_activacion(x, u, a):
+    """Devuelve los residuos de Butler-Volmer para anodo y catodo.
+
+    x = [eta_anodo, eta_catodo]
+    u = [C_H2, C_O2, temperatura, corriente]
+    a = [j0_anodo, j0_catodo, C_H2_ref, C_O2_ref,
+         alpha_anodo, alpha_catodo, area_anodo, area_catodo]
     """
-    Calcula los sobrevoltajes de activación del ánodo y cátodo.
-    
-    Parámetros:
-    -----------
-    x : array-like
-        [n_anodo, n_catodo] - sobrevoltajes a resolver
-    u : array-like
-        [CH2, CO2, T_operacion, I] - variables de decisión
-    a : array-like
-        [j0_anodo, j0_catodo, CH2_1, CO2_2, alpha_anodo, alpha_catodo, A_anodo, A_catodo]
-    
-    Retorna:
-    --------
-    V_act : array
-        [ecuacion_anodo, ecuacion_catodo] - sistema de ecuaciones a resolver
-    """
-    
-    n = 1
-    
-    # CONSTANTES
-    R = 8.314  # J/mol K
-    F = 96485  # C/mol
-    
-    # VARIABLES DE x
-    n_anodo = x[0]
-    n_catodo = x[1]
-    
-    # VARIABLES DE u
-    CH2 = u[0]
-    CO2 = u[1]
-    T_operacion = u[2]
-    I = u[3]
-    
-    # VARIABLES DE a
-    j0_anodo = a[0]
-    j0_catodo = a[1]
-    CH2_1 = a[2]
-    CO2_2 = a[3]
-    alpha_anodo = a[4]
-    alpha_catodo = a[5]
-    A_anodo = a[6]
-    A_catodo = a[7]
-    
-    # DENSIDADES DE CORRIENTE
-    J_anodo = I / A_anodo
-    J_catodo = I / A_catodo
-    
-    # FACTORES
-    f_anodo = (alpha_anodo * F) / (R * T_operacion)
-    f_catodo = (alpha_catodo * F) / (R * T_operacion)
-    
-    # LIMITAR EXPONENTES PARA EVITAR OVERFLOW
-    MAX_EXP = 700  # Límite seguro para np.exp()
-    
-    # ECUACIÓN 1: ÁNODO
-    exp_arg_1_pos = f_anodo * n_anodo
-    exp_arg_1_neg = -f_catodo * n_anodo
-    
-    exp_arg_1_pos = np.clip(exp_arg_1_pos, -MAX_EXP, MAX_EXP)
-    exp_arg_1_neg = np.clip(exp_arg_1_neg, -MAX_EXP, MAX_EXP)
-    
-    V_act_1 = j0_anodo*((CH2/CH2_1)**n)*(np.exp(exp_arg_1_pos) - np.exp(exp_arg_1_neg)) - J_anodo
-    
-    # ECUACIÓN 2: CÁTODO
-    exp_arg_2_pos = f_catodo * n_catodo
-    exp_arg_2_neg = -f_anodo * n_catodo
-    
-    exp_arg_2_pos = np.clip(exp_arg_2_pos, -MAX_EXP, MAX_EXP)
-    exp_arg_2_neg = np.clip(exp_arg_2_neg, -MAX_EXP, MAX_EXP)
-    
-    V_act_2 = j0_catodo * ((CO2/CO2_2) * (np.exp(exp_arg_2_pos) - np.exp(exp_arg_2_neg))) - J_catodo
-    
-    return np.array([V_act_1, V_act_2])
+    eta_anodo, eta_catodo = np.asarray(x, dtype=float)
+    c_h2, c_o2, temperatura, corriente = np.asarray(u, dtype=float)
+    valores = np.asarray(a, dtype=float)
+    j0_an, j0_ca, c_h2_ref, c_o2_ref = valores[:4]
+    alpha_an, alpha_ca, area_an, area_ca = valores[4:]
+    if min(c_h2, c_o2, c_h2_ref, c_o2_ref, temperatura, area_an, area_ca) <= 0:
+        return np.array([1e12, 1e12])
+
+    beta = F / (R * temperatura)
+
+    def corriente_bv(eta, alpha):
+        positivo = np.clip(alpha * beta * eta, -700, 700)
+        negativo = np.clip(-(1.0 - alpha) * beta * eta, -700, 700)
+        return np.exp(positivo) - np.exp(negativo)
+
+    residuo_an = j0_an * (c_h2 / c_h2_ref) * corriente_bv(eta_anodo, alpha_an) - corriente / area_an
+    residuo_ca = j0_ca * (c_o2 / c_o2_ref) * corriente_bv(eta_catodo, alpha_ca) - corriente / area_ca
+    return np.array([residuo_an, residuo_ca])

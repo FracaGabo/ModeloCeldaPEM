@@ -1,260 +1,95 @@
+"""Integracion de los balances dinamicos de materia de la PEMFC."""
+
 import numpy as np
 from scipy.integrate import solve_ivp
+
+from alimentacion import calcular_entradas
+from config import F, R, corriente_programada, validar_parametros
+from membrana import flujo_agua_membrana, propiedades_membrana
 from presion_sat import presion_sat
-from funcion_lambda import funcion_lambda
-from Difusividad import Difusividad
 
 
 def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
+    """Resuelve balances y flujo de agua; conserva la API historica."""
+    validar_parametros(parametros)
+    if not (tf > ti and dt > 0):
+        raise ValueError("Se requiere tf > ti y dt > 0")
+    C_inicial = np.asarray(C_inicial, dtype=float)
+    if C_inicial.shape != (5,) or np.any(C_inicial <= 0):
+        raise ValueError("C_inicial debe contener cinco concentraciones positivas")
 
-    # CONSTANTES
-    F = 96485
-    R = 8.314
-
-    V_anodo = parametros["V_anodo"]
-    V_catodo = parametros["V_catodo"]
-
-    A_catodo = parametros["A_catodo"]
-    e_membrana = parametros["e_membrana"]
-
-    rho_membrana = parametros["rho_membrana"]
-    PM_membrana = parametros["PM_membrana"]
-
-    #Condicones de entrada
-    q1 = entradas["q1"]
-    q2 = entradas["q2"]
-
-    CH2_1 = entradas["CH2_1"]
-    CH2O_1 = entradas["CH2O_1"]
-
-    CO2_2 = entradas["CO2_2"]
-    CH2O_2 = entradas["CH2O_2"]
-    CN2_2 = entradas["CN2_2"]
-
-    T_operacion = parametros["T_operacion"]
-
-    # VECTOR DE TIEMPO
-    tiempos = np.arange(ti, tf + dt, dt)
-
-    # MATRICES PARA GUARDAR RESULTADOS
-    
+    tiempos = np.arange(ti, tf + 0.5 * dt, dt)
+    if tiempos[-1] < tf:
+        tiempos = np.append(tiempos, tf)
     concentraciones = np.zeros((len(tiempos), 5))
-    FM_resultados = np.zeros(len(tiempos))
+    flujos_membrana = np.zeros(len(tiempos))
+    concentraciones[0] = C_inicial
+    corriente_base = entradas["I"]
+    fm_anterior = 0.0
 
-    # CONDICIONES INICIALES
-    concentraciones[0, :] = C_inicial
-
-    # VALOR INICIAL DEL ITERADOR FM
-    FM_anterior = 1e-4
-    FM_resultados[0] = FM_anterior
-    
-    # PARÁMETROS DE CONVERGENCIA
-    tolerancia = 1e-5
-    max_iteraciones = 1000
-
-    # CICLO TEMPORAL
-    for k in range(len(tiempos) - 1):
-
-        # Tiempo inicial y final del intervalo
-        t0 = tiempos[k]
-        t1 = tiempos[k + 1]
-
-        # Concentraciones al inicio del intervalo
-        C0 = concentraciones[k, :].copy()
-
-        # Primera estimación de FM
-        FM_iter = FM_anterior
-
+    for k, (t0, t1) in enumerate(zip(tiempos[:-1], tiempos[1:])):
+        corriente = corriente_programada(t0, parametros, corriente_base)
+        entradas_i = calcular_entradas(parametros, corriente) if parametros.get("alimentacion_sigue_corriente", False) else entradas
+        fm = fm_anterior
         convergio = False
 
-        # ITERACIÓN PARA HACER CONVERGER FM
-
-        for iteracion in range(max_iteraciones):
-
-
-            # CORRIENTE EN ESTE INTERVALO
-
-            if t0 < 800:
-
-                I = entradas["I"]
-
-            elif t0 < 1200:
-
-                I = 1.6 * A_catodo * 1e4
-
-            else:
-
-                I = 0.8 * A_catodo * 1e4
-
-
-            # FUNCIÓN DE BALANCES DE MATERIA
-
-            def balances(t, C):
-
-                CH2, CH2O_AN, CO2, CH2O_CA, CN2 = C
-
-
-                # CAUDALES DE SALIDA
-
-                q3 = (q1*CH2_1 - I/(2*F) + q1*CH2O_1 - FM_iter) / (CH2O_AN + CH2)
-
-                q4 = (q2*CN2_2 + q2*CO2_2 - I/(4*F) + q2*CH2O_2 + I/(2*F) + FM_iter) / (CN2 + CO2 + CH2O_CA)
-                
-                # BALANCE DE MATERIA ÁNODO
-                # HIDRÓGENO
-
-                dCH2dt = (q1/V_anodo)*CH2_1 - (q3/V_anodo)*CH2 - I/(2*F*V_anodo)
-
-                # AGUA ÁNODO
-                dCH2O_ANdt = (q1/V_anodo)*CH2O_1 - (q3/V_anodo)*CH2O_AN - FM_iter/V_anodo
-                
-                # BALANCE DE MATERIA CÁTODO
-                # OXÍGENO
-                dCO2dt = (q2/V_catodo)*CO2_2 - (q4/V_catodo)*CO2 - I/(4*F*V_catodo)
-
-                # AGUA CÁTODO
-                dCH2O_CAdt = (q2/V_catodo)*CH2O_2 - (q4/V_catodo)*CH2O_CA + I/(2*F*V_catodo) + FM_iter/V_catodo
-
-                # NITRÓGENO
-                dCN2dt = (q2/V_catodo)*CN2_2 - (q4/V_catodo)*CN2
-
-
-                return [
-                    dCH2dt,
-                    dCH2O_ANdt,
-                    dCO2dt,
-                    dCH2O_CAdt,
-                    dCN2dt
-                ]
-
-
-            # RESOLUCIÓN DE LAS EDO PARA ESTE INTERVALO
-
-            solucion = solve_ivp(
-                balances,
-                (t0, t1),
-                C0,
-                method="BDF",
-                rtol=1e-6,
-                atol=1e-8
-            )
-
-
-            # Verificar que solve_ivp pudo resolver el intervalo
-
-            if not solucion.success:
-
-                raise RuntimeError(
-                    f"Error en solve_ivp en t = {t0} s: "
-                    f"{solucion.message}"
-                )
-
-
-            # CONCENTRACIONES AL FINAL DEL INTERVALO
-
-            C_nueva = solucion.y[:, -1]
-
-
-            CH2 = C_nueva[0]
-
-            CH2O_AN = C_nueva[1]
-
-            CO2 = C_nueva[2]
-
-            CH2O_CA = C_nueva[3]
-
-            CN2 = C_nueva[4]
-
-
-            # PRESIÓN DE SATURACIÓN
-
-            psat_Pa = presion_sat(T_operacion, 1) * 1e5
-
-
-            # ACTIVIDAD DEL AGUA
-
-            actividad = [
-                R*T_operacion*CH2O_AN/psat_Pa,
-                R*T_operacion*CH2O_CA/psat_Pa
-            ]
-
-
-            # CONTENIDO DE AGUA DE LA MEMBRANA
-
-            lambda_agua = funcion_lambda(actividad)
-
-
-            # DIFUSIVIDAD DEL AGUA
-
-            Dw = Difusividad(lambda_agua, T_operacion)
-
-
-            # CONCENTRACIÓN DE AGUA SEGÚN LA MEMBRANA
-
-            CH2O_AN_mem = (rho_membrana/PM_membrana) * lambda_agua[0]
-
-            CH2O_CA_mem = (rho_membrana/PM_membrana) * lambda_agua[1]
-
-
-            # ARRASTRE ELECTROOSMÓTICO
-
-            nd = 2.5/22
-
-
-            # NUEVO FM
-
-            FM_nuevo = nd*(I/F) - A_catodo*Dw*(CH2O_CA_mem - CH2O_AN_mem)/e_membrana
-
-
-            # ERROR ENTRE FM ANTERIOR Y FM NUEVO
-
-            error = abs(FM_nuevo - FM_iter)
-
-
-            # COMPROBAR CONVERGENCIA
-
-            if error < tolerancia:
-
-                FM_iter = FM_nuevo
-
+        for _ in range(100):
+            nueva = _integrar_intervalo(t0, t1, concentraciones[k], fm, corriente, parametros, entradas_i)
+            fm_calculado = _calcular_fm(nueva, corriente, parametros)
+            error = abs(fm_calculado - fm)
+            escala = max(abs(fm_calculado), abs(fm), 1e-12)
+            if error <= 1e-10 + 1e-6 * escala:
+                fm = fm_calculado
                 convergio = True
-
                 break
-
-
-            # Si no converge, FM_nuevo pasa a ser
-            # el FM de la siguiente iteración
-
-            FM_iter = FM_nuevo
-
-
-        # VERIFICAR CONVERGENCIA
+            fm = 0.5 * fm + 0.5 * fm_calculado
 
         if not convergio:
+            raise RuntimeError(f"El flujo de membrana no convergio en t={t1:g} s")
+        nueva = _integrar_intervalo(t0, t1, concentraciones[k], fm, corriente, parametros, entradas_i)
+        if np.any(nueva <= 0) or not np.all(np.isfinite(nueva)):
+            raise RuntimeError(f"Estado no fisico calculado en t={t1:g} s: {nueva}")
+        concentraciones[k + 1] = nueva
+        flujos_membrana[k + 1] = fm
+        fm_anterior = fm
 
-            print(
-                f"Advertencia: FM no convergió "
-                f"en t = {t1} s"
-            )
-
-
-        # GUARDAR CONCENTRACIONES CONVERGIDAS
-
-        concentraciones[k + 1, :] = C_nueva
-
-
-        # GUARDAR FM CONVERGIDO
-
-        FM_resultados[k + 1] = FM_iter
+    return tiempos, concentraciones, flujos_membrana
 
 
-        # USAR FM CONVERGIDO COMO ESTIMACIÓN DEL SIGUIENTE PASO
+def _integrar_intervalo(t0, t1, C0, fm, corriente, parametros, entradas):
+    v_an, v_ca = parametros["V_anodo"], parametros["V_catodo"]
+    q1, q2 = entradas["q1"], entradas["q2"]
 
-        FM_anterior = FM_iter
+    def balances(_t, C):
+        c_h2, c_h2o_an, c_o2, c_h2o_ca, c_n2 = C
+        suma_an = c_h2 + c_h2o_an
+        suma_ca = c_o2 + c_h2o_ca + c_n2
+        if suma_an <= 0 or suma_ca <= 0:
+            raise ValueError("Concentracion total no positiva durante la integracion")
+        q3 = (q1 * (entradas["CH2_1"] + entradas["CH2O_1"]) - corriente / (2.0 * F) - fm) / suma_an
+        q4 = (q2 * (entradas["CO2_2"] + entradas["CH2O_2"] + entradas["CN2_2"]) + corriente / (4.0 * F) + fm) / suma_ca
+        # Una valvula de salida no admite flujo inverso. Si el balance algebraico
+        # pide un valor negativo, la salida se cierra y el inventario transitorio
+        # absorbe la diferencia; las concentraciones no positivas se rechazan al
+        # terminar el intervalo.
+        q3 = max(q3, 0.0)
+        q4 = max(q4, 0.0)
+        return (
+            q1 / v_an * entradas["CH2_1"] - q3 / v_an * c_h2 - corriente / (2.0 * F * v_an),
+            q1 / v_an * entradas["CH2O_1"] - q3 / v_an * c_h2o_an - fm / v_an,
+            q2 / v_ca * entradas["CO2_2"] - q4 / v_ca * c_o2 - corriente / (4.0 * F * v_ca),
+            q2 / v_ca * entradas["CH2O_2"] - q4 / v_ca * c_h2o_ca + corriente / (2.0 * F * v_ca) + fm / v_ca,
+            q2 / v_ca * entradas["CN2_2"] - q4 / v_ca * c_n2,
+        )
+
+    solucion = solve_ivp(balances, (t0, t1), C0, method="RK45", rtol=1e-7, atol=1e-9)
+    if not solucion.success:
+        raise RuntimeError(f"solve_ivp fallo en t={t0:g} s: {solucion.message}")
+    return solucion.y[:, -1]
 
 
-    
-    # RESULTADOS
-    
-
-    return tiempos, concentraciones, FM_resultados
+def _calcular_fm(C, corriente, parametros):
+    psat_pa = presion_sat(parametros["T_operacion"], 1) * 1e5
+    actividad = np.array([C[1], C[3]]) * R * parametros["T_operacion"] / psat_pa
+    lambdas, dw, _conductividad, c_agua = propiedades_membrana(actividad, parametros["T_operacion"], parametros)
+    return flujo_agua_membrana(corriente, lambdas, dw, c_agua, parametros)
