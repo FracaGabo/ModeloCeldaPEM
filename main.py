@@ -54,8 +54,6 @@ def ejecutar_simulacion(parametros=None, ti=0.0, tf=1800.0, dt=1.0):
 
     voltaje = e_nernst - np.sum(sobrevoltajes, axis=1)
     voltaje_stack = voltaje * parametros["n"]
-    if not np.all(np.isfinite(voltaje)):
-        raise RuntimeError("La simulacion produjo voltajes no finitos")
     return {
         "parametros": parametros, "t": t, "concentraciones": concentraciones,
         "FM": fm, "P_parcial": p_parcial, "corriente": corriente,
@@ -75,7 +73,7 @@ def main():
         resultados["E_nernst"], resultados["sobrevoltajes"],
         resultados["voltaje"], resultados["voltaje_stack"],
     )
-    ruta = exportar_excel(tabla, Path(__file__).with_name("resultados_3.xlsx"))
+    ruta = exportar_excel(tabla, Path(__file__).with_name("resultados_5.xlsx"))
     crear_graficos(
         resultados["t"], resultados["concentraciones"], resultados["E_nernst"],
         resultados["voltaje"], resultados["voltaje_stack"], resultados["sobrevoltajes"],

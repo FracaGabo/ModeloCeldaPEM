@@ -2,12 +2,6 @@ import numpy as np
 
 def funcion_lambda(actividad):
     """Contenido de agua de Nafion para las actividades de anodo y catodo."""
-    actividad = np.asarray(actividad, dtype=float)
-    if actividad.shape != (2,) or not np.all(np.isfinite(actividad)):
-        raise ValueError("actividad debe contener dos valores numericos finitos")
-    if np.any(actividad < 0):
-        raise ValueError("La actividad del agua no puede ser negativa")
-
     L = np.zeros(3)
 
     # ANODO

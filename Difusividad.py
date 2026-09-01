@@ -5,11 +5,6 @@ def Difusividad(x, T):
     L = float(x[2])
     T_operacion = T
 
-    if not np.isfinite(L) or L < 0:
-        raise ValueError("El contenido de agua lambda debe ser finito y no negativo")
-    if T_operacion <= 0:
-        raise ValueError("La temperatura absoluta debe ser positiva")
-
     if L < 2:
         D_lambda = 1e-10
 

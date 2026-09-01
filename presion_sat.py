@@ -1,8 +1,5 @@
 def presion_sat(T, correlacion=1):
     """Presion de saturacion del agua en bar a la temperatura ``T`` (K)."""
-    if T <= 0:
-        raise ValueError("La temperatura absoluta debe ser positiva")
-
     T_C = T - 273.15
 
     if correlacion == 0:
@@ -21,7 +18,4 @@ def presion_sat(T, correlacion=1):
         D = 1.4454*(1e-7)
         
         Psat = 10**(A + B*(T_C) + C*(T_C**2) + D*(T_C**3))
-    else:
-        raise ValueError("correlacion debe ser 0 (Antoine) o 1 (polinomica)")
-
     return Psat

@@ -12,8 +12,6 @@ def propiedades_membrana(actividad, T, parametros):
     lambdas = funcion_lambda(actividad)
     difusividad = Difusividad(lambdas, T)
     conductividad = (0.005139 * lambdas[2] - 0.00326) * np.exp(1268.0 * (1.0 / 303.0 - 1.0 / T))
-    if conductividad <= 0:
-        raise ValueError(f"Conductividad de membrana no positiva: {conductividad:.6g} S/cm")
     concentraciones = (parametros["rho_membrana"] / parametros["PM_membrana"]) * lambdas[:2]
     return lambdas, difusividad, conductividad, concentraciones
 
@@ -30,6 +28,4 @@ def resistencia_membrana(conductividad_s_cm, parametros):
     """Resistencia electrica de membrana, en ohm."""
     espesor_cm = parametros["e_membrana_m"] * 100.0
     area_cm2 = parametros["A_anodo"] * 1e4
-    if conductividad_s_cm <= 0:
-        raise ValueError("La conductividad debe ser positiva")
     return espesor_cm / (conductividad_s_cm * area_cm2)

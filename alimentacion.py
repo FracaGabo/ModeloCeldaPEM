@@ -10,14 +10,12 @@ def calcular_entradas(parametros, corriente):
 
     p_anodo = parametros["P_anodo"]
     y_h2o_an = parametros["RH_1"] * presion_sat(T, 1) / p_anodo
-    _validar_fraccion_agua(y_h2o_an, "anodo")
     y_h2_an = 1.0 - y_h2o_an
     n_h2 = parametros["exH2"] * corriente / (2.0 * F)
     n_h2o_an = n_h2 * y_h2o_an / y_h2_an
 
     p_catodo = parametros["P_catodo"]
     y_h2o_ca = parametros["RH_2"] * presion_sat(T, 1) / p_catodo
-    _validar_fraccion_agua(y_h2o_ca, "catodo")
     y_aire_seco = 1.0 - y_h2o_ca
     y_o2 = 0.21 * y_aire_seco
     y_n2 = 0.79 * y_aire_seco
@@ -36,10 +34,3 @@ def calcular_entradas(parametros, corriente):
         "CN2_2": p_catodo * y_n2 * 1e5 / (R * T),
         "I": corriente,
     }
-
-
-def _validar_fraccion_agua(fraccion, lado):
-    if not 0 <= fraccion < 1:
-        raise ValueError(
-            f"La fraccion de vapor calculada en el {lado} no es fisica: {fraccion}"
-        )

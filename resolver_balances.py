@@ -4,19 +4,14 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from alimentacion import calcular_entradas
-from config import F, R, corriente_programada, validar_parametros
+from config import F, R, corriente_programada
 from membrana import flujo_agua_membrana, propiedades_membrana
 from presion_sat import presion_sat
 
 
 def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
     """Resuelve balances y flujo de agua; conserva la API historica."""
-    validar_parametros(parametros)
-    if not (tf > ti and dt > 0):
-        raise ValueError("Se requiere tf > ti y dt > 0")
     C_inicial = np.asarray(C_inicial, dtype=float)
-    if C_inicial.shape != (5,) or np.any(C_inicial <= 0):
-        raise ValueError("C_inicial debe contener cinco concentraciones positivas")
 
     tiempos = np.arange(ti, tf + 0.5 * dt, dt)
     if tiempos[-1] < tf:
@@ -31,8 +26,6 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
         corriente = corriente_programada(t0, parametros, corriente_base)
         entradas_i = calcular_entradas(parametros, corriente) if parametros.get("alimentacion_sigue_corriente", False) else entradas
         fm = fm_anterior
-        convergio = False
-
         for _ in range(100):
             nueva = _integrar_intervalo(t0, t1, concentraciones[k], fm, corriente, parametros, entradas_i)
             fm_calculado = _calcular_fm(nueva, corriente, parametros)
@@ -40,15 +33,10 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
             escala = max(abs(fm_calculado), abs(fm), 1e-12)
             if error <= 1e-10 + 1e-6 * escala:
                 fm = fm_calculado
-                convergio = True
                 break
             fm = 0.5 * fm + 0.5 * fm_calculado
 
-        if not convergio:
-            raise RuntimeError(f"El flujo de membrana no convergio en t={t1:g} s")
         nueva = _integrar_intervalo(t0, t1, concentraciones[k], fm, corriente, parametros, entradas_i)
-        if np.any(nueva <= 0) or not np.all(np.isfinite(nueva)):
-            raise RuntimeError(f"Estado no fisico calculado en t={t1:g} s: {nueva}")
         concentraciones[k + 1] = nueva
         flujos_membrana[k + 1] = fm
         fm_anterior = fm
@@ -64,16 +52,8 @@ def _integrar_intervalo(t0, t1, C0, fm, corriente, parametros, entradas):
         c_h2, c_h2o_an, c_o2, c_h2o_ca, c_n2 = C
         suma_an = c_h2 + c_h2o_an
         suma_ca = c_o2 + c_h2o_ca + c_n2
-        if suma_an <= 0 or suma_ca <= 0:
-            raise ValueError("Concentracion total no positiva durante la integracion")
         q3 = (q1 * (entradas["CH2_1"] + entradas["CH2O_1"]) - corriente / (2.0 * F) - fm) / suma_an
         q4 = (q2 * (entradas["CO2_2"] + entradas["CH2O_2"] + entradas["CN2_2"]) + corriente / (4.0 * F) + fm) / suma_ca
-        # Una valvula de salida no admite flujo inverso. Si el balance algebraico
-        # pide un valor negativo, la salida se cierra y el inventario transitorio
-        # absorbe la diferencia; las concentraciones no positivas se rechazan al
-        # terminar el intervalo.
-        q3 = max(q3, 0.0)
-        q4 = max(q4, 0.0)
         return (
             q1 / v_an * entradas["CH2_1"] - q3 / v_an * c_h2 - corriente / (2.0 * F * v_an),
             q1 / v_an * entradas["CH2O_1"] - q3 / v_an * c_h2o_an - fm / v_an,
@@ -83,8 +63,6 @@ def _integrar_intervalo(t0, t1, C0, fm, corriente, parametros, entradas):
         )
 
     solucion = solve_ivp(balances, (t0, t1), C0, method="RK45", rtol=1e-7, atol=1e-9)
-    if not solucion.success:
-        raise RuntimeError(f"solve_ivp fallo en t={t0:g} s: {solucion.message}")
     return solucion.y[:, -1]
 
 

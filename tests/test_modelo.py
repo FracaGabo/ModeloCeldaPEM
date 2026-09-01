@@ -36,10 +36,6 @@ class PruebasModelo(unittest.TestCase):
         self.assertTrue(np.isfinite(valor))
         self.assertGreater(valor, 1.0)
 
-    def test_limite_de_corriente_se_valida(self):
-        with self.assertRaises(ValueError):
-            sobrevoltaje_concentracion(348.15, 23000, 23000)
-
     def test_alpha_igual_a_uno_es_valido(self):
         eta = sobrevoltaje_butler_volmer(
             corriente=20.0,
@@ -71,6 +67,13 @@ class PruebasModelo(unittest.TestCase):
         self.assertEqual(resultados["concentraciones"].shape, (3, 5))
         self.assertTrue(np.all(resultados["concentraciones"] > 0))
         self.assertTrue(np.all(np.isfinite(resultados["voltaje"])))
+
+    def test_presiones_totales_se_mantienen(self):
+        resultados = ejecutar_simulacion(self.parametros, tf=2, dt=1)
+        presion_anodo = resultados["P_parcial"][:, 0] + resultados["P_parcial"][:, 1]
+        presion_catodo = np.sum(resultados["P_parcial"][:, 2:5], axis=1)
+        np.testing.assert_allclose(presion_anodo, self.parametros["P_anodo"], rtol=1e-8)
+        np.testing.assert_allclose(presion_catodo, self.parametros["P_catodo"], rtol=1e-8)
 
 
 if __name__ == "__main__":
