@@ -9,6 +9,8 @@ from resolver_balances import resolver_balances
 from sobrevoltaje_activacion import sobrevoltaje_activacion
 
 
+#ESTO ES UNA PRUEBA PARA VER SI SE USAR UNA BRANCH
+
 #CONSTANTES Y PROPIEDADES
 R = 8.314 #J/mol K -- Cte Gases Ideales
 F = 96485 #C/mol -- Cte de Faraday
