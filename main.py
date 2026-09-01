@@ -169,40 +169,102 @@ for i in range(rango):
                    (np.log(P_parcial[i, 0]) + np.log(P_parcial[i, 1] * 0.5)))
 
 
-# SOBREVOLTAJES
-a2 = np.array([parametros["j0_anodo"], parametros["j0_catodo"], CH2_1, CO2_2,
-               parametros["alpha_anodo"], parametros["alpha_catodo"], 
-               parametros["A_anodo"], parametros["A_catodo"]])
+# ============================================================
+# SOBREVOLTAJES DE ACTIVACIÓN
+# ============================================================
 
-iterador = np.array([0.01, 0.1])
+a2 = np.array([
+    parametros["j0_anodo"],
+    parametros["j0_catodo"],
+    CH2_1,
+    CO2_2,
+    parametros["alpha_anodo"],
+    parametros["alpha_catodo"],
+    parametros["A_anodo"],
+    parametros["A_catodo"]
+])
+
+
+# Primera estimación solamente para t = 0
+iterador = np.array([0.05, 0.5])
+
 
 for i in range(rango):
+
     t0 = t[i]
-    
-    # APLICAR EL MISMO CAMBIO DE CORRIENTE
+
     if t0 < 800:
         It = I
+
     elif t0 < 1200:
         It = 1.6 * parametros["A_catodo"] * 1e4
+
     else:
         It = 0.8 * parametros["A_catodo"] * 1e4
-    
+
+
+    # ========================================================
     # VARIABLES DE DECISIÓN
-    u2 = np.array([concentraciones[i, 0], concentraciones[i, 2], T_operacion, It])
+    # ========================================================
+
+    u2 = np.array([
+        concentraciones[i, 0],   # H2
+        concentraciones[i, 2],   # O2
+        T_operacion,
+        It
+    ])
+
+
+    V_act, info, ier, mensaje = fsolve(
+        sobrevoltaje_activacion,
+        iterador,
+        args=(u2, a2),
+        full_output=True,
+        xtol=1e-12,
+        maxfev=10000
+    )
+
+
+    # ========================================================
+    # COMPROBAR CONVERGENCIA
+    # ========================================================
+
+    if ier == 1:
+
+        sobrevoltaje[i, 0] = V_act[0]
+        sobrevoltaje[i, 1] = V_act[1]
+
+        # MUY IMPORTANTE:
+        # usar esta solución como iterador del siguiente tiempo
+        iterador = V_act.copy()
+
+    else:
+
+        print(
+            f"fsolve no convergió en t = {t0:.1f} s | "
+            f"CH2 = {u2[0]:.6f} | "
+            f"O2 = {u2[1]:.6f} | "
+            f"I = {It:.3f} A"
+        )
+
+        print("Mensaje:", mensaje)
+
+        # Mantener el último valor válido
+        if i > 0:
+
+            sobrevoltaje[i, 0] = sobrevoltaje[i-1, 0]
+            sobrevoltaje[i, 1] = sobrevoltaje[i-1, 1]
+
+        else:
+
+            sobrevoltaje[i, 0] = iterador[0]
+            sobrevoltaje[i, 1] = iterador[1]
     
-    try:
-        # RESOLUCIÓN SOBREVOLTAJE DE ACTIVACIÓN con mejores opciones
-        V_act = fsolve(lambda x: sobrevoltaje_activacion(x, u2, a2), 
-                      iterador, 
-                      full_output=False,
-                      maxfev=5000)
-        
-        sobrevoltaje[i, 0] = V_act[0]  # Ánodo
-        sobrevoltaje[i, 1] = V_act[1]  # Cátodo
-    except Exception as e:
-        print(f"Error en iteración {i}: {e}")
-        sobrevoltaje[i, 0] = 0.01
-        sobrevoltaje[i, 1] = 0.01
+    
+    
+    
+    
+    
     
     # SOBREVOLTAJE OHMICO
     psat = presion_sat(T_operacion, 1)  # bar
@@ -320,7 +382,7 @@ datos_exportar = pd.DataFrame({
 })
 
 # Guardar en Excel
-ruta_excel = r'd:\Gab\Escritorio\Proyectos_Python\resultados.xlsx'
+ruta_excel = r'd:\Gab\Escritorio\Proyectos_Python\resultados2.xlsx'
 datos_exportar.to_excel(ruta_excel, index=False, sheet_name='Datos')
 
 print(f"✓ Datos exportados exitosamente a: {ruta_excel}")
