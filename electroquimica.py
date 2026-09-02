@@ -10,8 +10,6 @@ def potencial_nernst(T, p_h2, p_o2):
     """Potencial reversible PEMFC; presiones parciales en bar."""
     p_h2 = np.asarray(p_h2, dtype=float)
     p_o2 = np.asarray(p_o2, dtype=float)
-    if np.any(p_h2 <= 0) or np.any(p_o2 <= 0):
-        raise ValueError("Nernst requiere presiones parciales positivas")
     e0_t = 1.229 - 0.85e-3 * (T - 298.15)
     return e0_t + (R * T / (2.0 * F)) * (np.log(p_h2) + 0.5 * np.log(p_o2))
 

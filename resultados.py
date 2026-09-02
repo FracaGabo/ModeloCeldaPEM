@@ -47,19 +47,19 @@ def exportar_excel(tabla, ruta):
 
 
 def crear_graficos(t, concentraciones, e_nernst, voltaje, voltaje_stack, sobrevoltajes):
-    fig0, ax0 = plt.subplots(figsize=(10, 6))
+    fig0, ax0 = plt.subplots(figsize=(11, 9))
     etiquetas = ("H2", "H2O (anodo)", "O2", "H2O (catodo)", "N2")
     for indice, etiqueta in enumerate(etiquetas):
         ax0.plot(t, concentraciones[:, indice], label=etiqueta, linewidth=2)
     _formatear(ax0, "Concentracion de especies vs tiempo", "Concentracion (mol/m3)", t)
 
-    fig1, ax1 = plt.subplots(figsize=(10, 6))
+    fig1, ax1 = plt.subplots(figsize=(11, 9))
     ax1.plot(t, e_nernst, label="Voltaje de Nernst", linewidth=2)
     ax1.plot(t, voltaje, label="Voltaje de la celda", linewidth=2)
     ax1.plot(t, voltaje_stack, label="Voltaje del stack", linewidth=2)
     _formatear(ax1, "Voltajes", "Voltaje (V)", t)
 
-    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    fig2, ax2 = plt.subplots(figsize=(11, 9))
     etiquetas_eta = ("Activacion anodo", "Activacion catodo", "Ohmico", "Concentracion")
     for indice, etiqueta in enumerate(etiquetas_eta):
         ax2.plot(t, sobrevoltajes[:, indice], label=etiqueta, linewidth=2)

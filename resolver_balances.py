@@ -24,7 +24,7 @@ def resolver_balances(parametros, entradas, C_inicial, ti, tf, dt=1):
 
     for k, (t0, t1) in enumerate(zip(tiempos[:-1], tiempos[1:])):
         corriente = corriente_programada(t0, parametros, corriente_base)
-        entradas_i = calcular_entradas(parametros, corriente) if parametros.get("alimentacion_sigue_corriente", False) else entradas
+        entradas_i = calcular_entradas(parametros, corriente)
         fm = fm_anterior
         for _ in range(100):
             nueva = _integrar_intervalo(t0, t1, concentraciones[k], fm, corriente, parametros, entradas_i)
